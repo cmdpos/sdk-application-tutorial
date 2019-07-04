@@ -5,10 +5,12 @@ import (
 	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
-	"github.com/cosmos/cosmos-sdk/client/rest"
+	"github.com/cosmos/sdk-application-tutorial/x/nameservice"
+
+	clientrest "github.com/cosmos/cosmos-sdk/client/rest"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/sdk-application-tutorial/x/nameservice"
+	"github.com/cosmos/cosmos-sdk/types/rest"
 
 	"github.com/gorilla/mux"
 )
@@ -19,6 +21,7 @@ const (
 
 // RegisterRoutes - Central function to define routes that get registered by the main application
 func RegisterRoutes(cliCtx context.CLIContext, r *mux.Router, cdc *codec.Codec, storeName string) {
+	r.HandleFunc(fmt.Sprintf("/%s/names", storeName), namesHandler(cdc, cliCtx, storeName)).Methods("GET")
 	r.HandleFunc(fmt.Sprintf("/%s/names", storeName), buyNameHandler(cdc, cliCtx)).Methods("POST")
 	r.HandleFunc(fmt.Sprintf("/%s/names", storeName), setNameHandler(cdc, cliCtx)).Methods("PUT")
 	r.HandleFunc(fmt.Sprintf("/%s/names/{%s}", storeName, restName), resolveNameHandler(cdc, cliCtx, storeName)).Methods("GET")
@@ -66,7 +69,7 @@ func buyNameHandler(cdc *codec.Codec, cliCtx context.CLIContext) http.HandlerFun
 			return
 		}
 
-		rest.CompleteAndBroadcastTxREST(w, r, cliCtx, baseReq, []sdk.Msg{msg}, cdc)
+		clientrest.WriteGenerateStdTxResponse(w, cdc, cliCtx, baseReq, []sdk.Msg{msg})
 	}
 }
 
@@ -104,7 +107,7 @@ func setNameHandler(cdc *codec.Codec, cliCtx context.CLIContext) http.HandlerFun
 			return
 		}
 
-		rest.CompleteAndBroadcastTxREST(w, r, cliCtx, baseReq, []sdk.Msg{msg}, cdc)
+		clientrest.WriteGenerateStdTxResponse(w, cdc, cliCtx, baseReq, []sdk.Msg{msg})
 	}
 }
 
@@ -134,6 +137,17 @@ func whoIsHandler(cdc *codec.Codec, cliCtx context.CLIContext, storeName string)
 			return
 		}
 
+		rest.PostProcessResponse(w, cdc, res, cliCtx.Indent)
+	}
+}
+
+func namesHandler(cdc *codec.Codec, cliCtx context.CLIContext, storeName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		res, err := cliCtx.QueryWithData(fmt.Sprintf("custom/%s/names", storeName), nil)
+		if err != nil {
+			rest.WriteErrorResponse(w, http.StatusNotFound, err.Error())
+			return
+		}
 		rest.PostProcessResponse(w, cdc, res, cliCtx.Indent)
 	}
 }

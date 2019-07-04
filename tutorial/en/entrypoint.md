@@ -33,6 +33,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/cosmos-sdk/x/bank"
+	"github.com/cosmos/cosmos-sdk/x/bank"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/tendermint/tendermint/crypto"
@@ -49,7 +50,7 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
-// DefaultNodeHome sets the folder where the applcation data and configuration will be stored
+// DefaultNodeHome sets the folder where the application data and configuration will be stored
 var DefaultNodeHome = os.ExpandEnv("$HOME/.nsd")
 
 const (
@@ -70,7 +71,6 @@ func main() {
 
 	rootCmd.AddCommand(InitCmd(ctx, cdc))
 	rootCmd.AddCommand(AddGenesisAccountCmd(ctx, cdc))
-
 	server.AddCommands(ctx, cdc, rootCmd, newApp, appExporter())
 
 	// prepare and add flags
@@ -163,7 +163,7 @@ func AddGenesisAccountCmd(ctx *server.Context, cdc *codec.Codec) *cobra.Command 
 		Long: strings.TrimSpace(`
 Adds accounts to the genesis file so that you can start a chain with coins in the CLI:
 
-$ nsd add-genesis-account cosmos1tse7r2fadvlrrgau3pa0ss7cqh55wrv6y9alwh 1000STAKE,1000mycoin
+$ nsd add-genesis-account cosmos1tse7r2fadvlrrgau3pa0ss7cqh55wrv6y9alwh 1000STAKE,1000nametoken
 `),
 		RunE: func(_ *cobra.Command, args []string) error {
 			addr, err := sdk.AccAddressFromBech32(args[0])
@@ -250,10 +250,8 @@ func SimpleAppGenTx(cdc *codec.Codec, pk crypto.PubKey) (
 ```
 
 Notes on the above code:
-- Most of the code above combines the CLI commands from
-	1. Tendermint
-	2. Cosmos-SDK
-	3. Your Nameservice module
+
+- Most of the code above combines the CLI commands from Tendermint, Cosmos-SDK and your Nameservice module.
 - `InitCmd` allows the app to generate genesis state from the configuration. Dig into the function calls there to learn more about the chain bootstrapping process
 - `AddGenesisAccountCmd` is a convenience for adding accounts to the genesis file, allowing for wallets with coins at chain start
 
@@ -275,7 +273,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/lcd"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
 	"github.com/cosmos/cosmos-sdk/client/tx"
-	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	amino "github.com/tendermint/go-amino"
@@ -336,7 +333,7 @@ func main() {
 		client.LineBreak,
 		keys.Commands(),
 		client.LineBreak,
-		version.VersionCmd,
+	
 	)
 
 	executor := cli.PrepareMainCmd(rootCmd, "NS", defaultCLIHome)
@@ -348,7 +345,6 @@ func main() {
 
 func registerRoutes(rs *lcd.RestServer) {
 	rs.CliCtx = rs.CliCtx.WithAccountDecoder(rs.Cdc)
-	keys.RegisterRoutes(rs.Mux, rs.CliCtx.Indent)
 	rpc.RegisterRoutes(rs.CliCtx, rs.Mux)
 	tx.RegisterRoutes(rs.CliCtx, rs.Mux, rs.Cdc)
 	auth.RegisterRoutes(rs.CliCtx, rs.Mux, rs.Cdc, storeAcc)
@@ -389,7 +385,7 @@ func txCmd(cdc *amino.Codec, mc []sdk.ModuleClients) *cobra.Command {
 		bankcmd.SendTxCmd(cdc),
 		client.LineBreak,
 		authcmd.GetSignCommand(cdc),
-		authcmd.GetBroadcastCommand(cdc),
+		tx.GetBroadcastCommand(cdc),
 		client.LineBreak,
 	)
 
@@ -425,12 +421,10 @@ func initConfig(cmd *cobra.Command) error {
 ```
 
 Note:
-- The code combines the CLI commands from:
-	1. Tendermint
-	2. Cosmos-SDK
-	3. Your Nameservice module
+
+- The code combines the CLI commands from Tendermint, Cosmos-SDK and your Nameservice module.
 - The [`cobra` CLI documentation](http://github.com/spf13/cobra) will help with understanding the above code.
 - You can see the `ModuleClient` defined earlier in action here.
 - Note how the routes are included in the `registerRoutes` function
 
-### Now that you have your binaries defined its time to deal with [dependency management and build your app](./dep.md)!
+### Now that you have your binaries defined its time to deal with [dependency management and build your app](dep.md)!

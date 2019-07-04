@@ -2,14 +2,9 @@
 
 ## Building the `nameservice` application
 
-If you want to build the `nameservice` application in this repo to see the functionalities, first you need to install `dep`.
-
-> _*NOTE*_: If you are building the application you started in your own repo, your application needs to import the code you just wrote. The code in this tutorial sets the import path is set to this repository (`github.com/cosmos/sdk-application-tutorial`). If you are following along in your own repo you will need to change the import path (in all the files) to reflect that (`github.com/{ .Username }/{ .Project.Repo }`) before building the application.
+If you want to build the `nameservice` application in this repo to see the functionalities, **Go 1.12.1+** is required .
 
 ```bash
-# Initialize dep and install dependencies
-make get_tools && make get_vendor_deps
-
 # Install the app into your $GOBIN
 make install
 
@@ -28,7 +23,7 @@ To initialize configuration and a `genesis.json` file for your application and a
 
 ```bash
 # Initialize configuration files and genesis file
-nsd init --chain-id testchain
+nsd init --chain-id namechain
 
 # Copy the `Address` output here and save it for later use
 nscli keys add jack
@@ -37,11 +32,11 @@ nscli keys add jack
 nscli keys add alice
 
 # Add both accounts, with coins to the genesis file
-nsd add-genesis-account $(nscli keys show jack -a) 1000mycoin,1000jackcoin
-nsd add-genesis-account $(nscli keys show alice -a) 1000mycoin,1000alicecoin
+nsd add-genesis-account $(nscli keys show jack -a) 1000nametoken,1000jackcoin
+nsd add-genesis-account $(nscli keys show alice -a) 1000nametoken,1000alicecoin
 
 # Configure your CLI to eliminate need for chain-id flag
-nscli config chain-id testchain
+nscli config chain-id namechain
 nscli config output json
 nscli config indent true
 nscli config trust-node true
@@ -53,33 +48,25 @@ Open another terminal to run commands against the network you have just created:
 
 ```bash
 # First check the accounts to ensure they have funds
-nscli query account $(nscli keys show jack -a) \
-    --chain-id testchain
-nscli query account $(nscli keys show alice -a) \
-    --chain-id testchain
+nscli query account $(nscli keys show jack -a) 
+nscli query account $(nscli keys show alice -a) 
 
 # Buy your first name using your coins from the genesis file
-nscli tx nameservice buy-name jack.id 5mycoin \
-    --from     jack \
-    --chain-id testchain
+nscli tx nameservice buy-name jack.id 5nametoken --from jack 
 
 # Set the value for the name you just bought
-nscli tx nameservice set-name jack.id 8.8.8.8 \
-    --from     jack \
-    --chain-id testchain
+nscli tx nameservice set-name jack.id 8.8.8.8 --from jack 
 
 # Try out a resolve query against the name you registered
-nscli query nameservice resolve jack.id --chain-id testchain
+nscli query nameservice resolve jack.id
 # > 8.8.8.8
 
 # Try out a whois query against the name you just registered
-nscli query nameservice whois jack.id --chain-id testchain
-# > {"value":"8.8.8.8","owner":"cosmos1l7k5tdt2qam0zecxrx78yuw447ga54dsmtpk2s","price":[{"denom":"mycoin","amount":"5"}]}
+nscli query nameservice whois jack.id
+# > {"value":"8.8.8.8","owner":"cosmos1l7k5tdt2qam0zecxrx78yuw447ga54dsmtpk2s","price":[{"denom":"nametoken","amount":"5"}]}
 
 # Alice buys name from jack
-nscli tx nameservice buy-name jack.id 10mycoin \
-    --from     alice \
-    --chain-id testchain
+nscli tx nameservice buy-name jack.id 10nametoken --from alice 
 ```
 
-### Congratulations, you have built a Cosmos SDK application! This tutorial is now complete. If you want to see how to run the same commands using the REST server [click here](./run-rest.md).
+### Congratulations, you have built a Cosmos SDK application! This tutorial is now complete. If you want to see how to run the same commands using the REST server [click here](run-rest.md).

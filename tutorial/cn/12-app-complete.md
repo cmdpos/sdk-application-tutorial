@@ -1,3 +1,10 @@
+# 引入你的模块并完成程序
+
+现在你的模块已就绪，它可以和其它两个模块[`auth`](https://godoc.org/github.com/cosmos/cosmos-sdk/x/auth)和[`bank`](https://godoc.org/github.com/cosmos/cosmos-sdk/x/bank)被合并到`./app.go`文件中:
+
+> 你的应用程序需要导入你刚编写的代码。这里导入路径设置为此存储库（github.com/cosmos/sdk-application-tutorial/x/nameservice）。如果您是在自己的仓库中进行的前面的操作，则需要更改导入路径（github.com/{.Username}/{.Project.Repo}/x/nameservice）。
+
+```go
 package app
 
 import (
@@ -19,6 +26,11 @@ import (
 	dbm "github.com/tendermint/tendermint/libs/db"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
+```
+
+接下来，你需要在`nameServiceApp`结构体中添加存储的key和`Keepers`，并更新构造函数：
+
+```go
 
 const (
 	appName = "nameservice"
@@ -42,6 +54,44 @@ type nameServiceApp struct {
 	nsKeeper            nameservice.Keeper
 }
 
+// NewNameServiceApp is a constructor function for nameServiceApp
+func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
+
+	// First define the top level codec that will be shared by the different modules
+	cdc := MakeCodec()
+
+	// BaseApp handles interactions with Tendermint through the ABCI protocol
+	bApp := bam.NewBaseApp(appName, logger, db, auth.DefaultTxDecoder(cdc))
+
+	// Here you initialize your application with the store keys it requires
+	var app = &nameServiceApp{
+		BaseApp: bApp,
+		cdc:     cdc,
+
+		keyMain:          sdk.NewKVStoreKey("main"),
+		keyAccount:       sdk.NewKVStoreKey("acc"),
+		keyNS:            sdk.NewKVStoreKey("ns"),
+		keyFeeCollection: sdk.NewKVStoreKey("fee_collection"),
+		keyParams:        sdk.NewKVStoreKey("params"),
+		tkeyParams:       sdk.NewTransientStoreKey("transient_params"),
+	}
+
+	return app
+}
+```
+
+此时，构造函数仍然缺少重要的逻辑。它需要：
+
+- 从每个所需模块中实例化所需的`Keeper`。
+- 生成每个`Keeper`所需的`storeKey`。
+- 注册每个模块的`handler`。`baseapp`的`路由器`的 `AddRoute()` 方法用来做这个。
+- 注册每个模块的`querier`。`baseapp`的`queryRouter`中的`AddRoute()`方法用来做这个。
+- 将`KVStores`挂载到`baseApp`的multistore提供的key值。
+- 设置`initChainer`来定义初始应用程序状态。
+
+你最终的构造函数应该如下所示：
+
+```go
 // NewNameServiceApp is a constructor function for nameServiceApp
 func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 
@@ -126,7 +176,15 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 
 	return app
 }
+```
 
+> 注意：上面提到的 TransientStore 是 KVStore 的内存实现，用于未持久化的状态。
+
+`initChainer`定义了`genesis.json`中的帐户如何在初始化区块链时被映射到应用程序状态。`ExportAppStateAndValidators`函数可帮助引导初始化应用程序的状态。你现在不需要太关心它们。
+
+构造函数注册了`initChainer`函数，但尚未定义。继续创建它：
+
+```go
 // GenesisState represents chain state at the start of the chain. Any initial state (account balances) are stored here.
 type GenesisState struct {
 	AuthData auth.GenesisState   `json:"auth"`
@@ -184,7 +242,11 @@ func (app *nameServiceApp) ExportAppStateAndValidators() (appState json.RawMessa
 
 	return appState, validators, err
 }
+```
 
+最后添加一个辅助函数来生成一个animo--[`*codec.Codec`](https://godoc.org/github.com/cosmos/cosmos-sdk/codec#Codec)，它可以正确地注册你应用程序中使用的所有模块：
+
+```go
 // MakeCodec generates the necessary codecs for Amino
 func MakeCodec() *codec.Codec {
 	var cdc = codec.New()
@@ -196,3 +258,9 @@ func MakeCodec() *codec.Codec {
 	codec.RegisterCrypto(cdc)
 	return cdc
 }
+```
+
+###  现在您已经创建了一个包含模块的应用程序，现在是时候[构建入口点了](./13-entrypoint.md)！
+
+
+

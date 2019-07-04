@@ -1,3 +1,13 @@
+# Queriers
+
+Start by creating the `./x/nameservice/querier.go` file. This is the place to define which queries against application state users will be able to make. Your `nameservice` module will expose two queries:
+
+- `resolve`: This takes a `name` and returns the `value` that is stored by the `nameservice`. This is similar to a DNS query.
+- `whois`: This takes a `name` and returns the `price`, `value`, and `owner` of the name. Used for figuring out how much names cost when you want to buy them.
+
+Start by defining the `NewQuerier` function which acts as a sub-router for queries to this module (similar the `NewHandler` function). Note that because there isn't an interface similar to `Msg` for queries, you need to manually define switch statement cases (they can't be pulled off of the query `.Route()` function):
+
+```go
 package nameservice
 
 import (
@@ -32,7 +42,11 @@ func NewQuerier(keeper Keeper) sdk.Querier {
 		}
 	}
 }
+```
 
+Now that the router is defined, define the inputs and responses for each query:
+
+```go
 // nolint: unparam
 func queryResolve(ctx sdk.Context, path []string, req abci.RequestQuery, keeper Keeper) (res []byte, err sdk.Error) {
 	name := path[0]
@@ -107,3 +121,14 @@ type QueryResNames []string
 func (n QueryResNames) String() string {
 	return strings.Join(n[:], "\n")
 }
+```
+
+Notes on the above code:
+
+- Here your `Keeper`'s getters and setters come into heavy use. When building any other applications that use this module you may need to go back and define more getters/setters to access the pieces of state you need.
+- By convention, each output type should be something that is both JSON marshallable and stringable (implements the Golang `fmt.Stringer` interface).  The returned bytes should be the JSON encoding of the output result.
+  - So for the output type of `resolve` we wrap the resolution string in a struct called `QueryResResolve` which is both JSON marshallable and has a `.String()` method.
+  - For the output of Whois, the normal Whois struct is already JSON marshalable, but we need to add a `.String()` method on it.
+  - Same for the output of a names query, a `[]string` is already natively marshalable, but we want to add a `.String()` method on it.
+
+### Now that you have ways to mutate and view your module state it's time to put the finishing touches on it! Register your types in the [Amino encoding format next](./codec.md)!

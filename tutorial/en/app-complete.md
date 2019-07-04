@@ -27,6 +27,7 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 ```
+
 Next you need to add the stores' keys as well as the `Keepers` in your `nameServiceApp` struct, and update the constructor accordingly
 
 ```go
@@ -41,9 +42,7 @@ type nameServiceApp struct {
 
 	keyMain          *sdk.KVStoreKey
 	keyAccount       *sdk.KVStoreKey
-	keyNSnames       *sdk.KVStoreKey
-	keyNSowners      *sdk.KVStoreKey
-	keyNSprices      *sdk.KVStoreKey
+	keyNS            *sdk.KVStoreKey
 	keyFeeCollection *sdk.KVStoreKey
 	keyParams        *sdk.KVStoreKey
 	tkeyParams       *sdk.TransientStoreKey
@@ -55,30 +54,29 @@ type nameServiceApp struct {
 	nsKeeper            nameservice.Keeper
 }
 
+// NewNameServiceApp is a constructor function for nameServiceApp
 func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 
-  // First define the top level codec that will be shared by the different modules
-  cdc := MakeCodec()
+	// First define the top level codec that will be shared by the different modules
+	cdc := MakeCodec()
 
-  // BaseApp handles interactions with Tendermint through the ABCI protocol
-  bApp := bam.NewBaseApp(appName, logger, db, auth.DefaultTxDecoder(cdc))
+	// BaseApp handles interactions with Tendermint through the ABCI protocol
+	bApp := bam.NewBaseApp(appName, logger, db, auth.DefaultTxDecoder(cdc))
 
-  // Here you initialize your application with the store keys it requires
+	// Here you initialize your application with the store keys it requires
 	var app = &nameServiceApp{
 		BaseApp: bApp,
 		cdc:     cdc,
 
 		keyMain:          sdk.NewKVStoreKey("main"),
 		keyAccount:       sdk.NewKVStoreKey("acc"),
-		keyNSnames:       sdk.NewKVStoreKey("ns_names"),
-		keyNSowners:      sdk.NewKVStoreKey("ns_owners"),
-		keyNSprices:      sdk.NewKVStoreKey("ns_prices"),
+		keyNS:            sdk.NewKVStoreKey("ns"),
 		keyFeeCollection: sdk.NewKVStoreKey("fee_collection"),
 		keyParams:        sdk.NewKVStoreKey("params"),
 		tkeyParams:       sdk.NewTransientStoreKey("transient_params"),
 	}
 
-  return app
+	return app
 }
 ```
 
@@ -110,9 +108,7 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 
 		keyMain:          sdk.NewKVStoreKey("main"),
 		keyAccount:       sdk.NewKVStoreKey("acc"),
-		keyNSnames:       sdk.NewKVStoreKey("ns_names"),
-		keyNSowners:      sdk.NewKVStoreKey("ns_owners"),
-		keyNSprices:      sdk.NewKVStoreKey("ns_prices"),
+		keyNS:            sdk.NewKVStoreKey("ns"),
 		keyFeeCollection: sdk.NewKVStoreKey("fee_collection"),
 		keyParams:        sdk.NewKVStoreKey("params"),
 		tkeyParams:       sdk.NewTransientStoreKey("transient_params"),
@@ -143,9 +139,7 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 	// It handles interactions with the namestore
 	app.nsKeeper = nameservice.NewKeeper(
 		app.bankKeeper,
-		app.keyNSnames,
-		app.keyNSowners,
-		app.keyNSprices,
+		app.keyNS,
 		app.cdc,
 	)
 
@@ -160,7 +154,8 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 
 	// The app.QueryRouter is the main query router where each module registers its routes
 	app.QueryRouter().
-		AddRoute("nameservice", nameservice.NewQuerier(app.nsKeeper))
+		AddRoute("nameservice", nameservice.NewQuerier(app.nsKeeper)).
+		AddRoute("acc", auth.NewQuerier(app.accountKeeper))
 
 	// The initChainer handles translating the genesis.json file into initial state for the network
 	app.SetInitChainer(app.initChainer)
@@ -168,9 +163,7 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 	app.MountStores(
 		app.keyMain,
 		app.keyAccount,
-		app.keyNSnames,
-		app.keyNSowners,
-		app.keyNSprices,
+		app.keyNS,
 		app.keyFeeCollection,
 		app.keyParams,
 		app.tkeyParams,
@@ -187,7 +180,7 @@ func NewNameServiceApp(logger log.Logger, db dbm.DB) *nameServiceApp {
 
 > _*NOTE*_: The TransientStore mentioned above is an in-memory implementation of the KVStore for state that is not persisted.
 
-The `initChainer` defines how accounts in `genesis.json` are mapped into the application state on initial chain start. The `ExportAppStateAndValidators` function helps bootstrap the initial state for application. You don't need to worry too much about either of these for now.
+The `initChainer` defines how accounts in `genesis.json` are mapped into the application state on initial chain start. The `ExportAppStateAndValidators` function helps bootstrap the initial state for the application. You don't need to worry too much about either of these for now.
 
 The constructor registers the `initChainer` function, but it isn't defined yet. Go ahead and create it:
 
@@ -260,11 +253,11 @@ func MakeCodec() *codec.Codec {
 	auth.RegisterCodec(cdc)
 	bank.RegisterCodec(cdc)
 	nameservice.RegisterCodec(cdc)
-	stake.RegisterCodec(cdc)
+	staking.RegisterCodec(cdc)
 	sdk.RegisterCodec(cdc)
 	codec.RegisterCrypto(cdc)
 	return cdc
 }
 ```
 
-### Now that you have created an application that includes your module, it's time to [build your entrypoints](./entrypoint.md)!
+### Now that you have created an application that includes your module, it's time to [build your entrypoints](entrypoint.md)!

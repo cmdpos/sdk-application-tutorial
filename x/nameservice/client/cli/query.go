@@ -2,11 +2,10 @@ package cli
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
 	"github.com/cosmos/cosmos-sdk/codec"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/sdk-application-tutorial/x/nameservice"
 	"github.com/spf13/cobra"
 )
 
@@ -26,17 +25,11 @@ func GetCmdResolveName(queryRoute string, cdc *codec.Codec) *cobra.Command {
 				return nil
 			}
 
-			return cliCtx.PrintOutput(resolveRes{string(res)})
+			var out nameservice.QueryResResolve
+			cdc.MustUnmarshalJSON(res, &out)
+			return cliCtx.PrintOutput(out)
 		},
 	}
-}
-
-type resolveRes struct {
-	Value string `json:"value"`
-}
-
-func (r resolveRes) String() string {
-	return r.Value
 }
 
 // GetCmdWhois queries information about a domain
@@ -55,21 +48,31 @@ func GetCmdWhois(queryRoute string, cdc *codec.Codec) *cobra.Command {
 				return nil
 			}
 
-			var out whoIsRes
+			var out nameservice.Whois
 			cdc.MustUnmarshalJSON(res, &out)
 			return cliCtx.PrintOutput(out)
 		},
 	}
 }
 
-type whoIsRes struct {
-	Value string         `json:"value"`
-	Owner sdk.AccAddress `json:"owner"`
-	Price sdk.Coins      `json:"price"`
-}
+// GetCmdNames queries a list of all names
+func GetCmdNames(queryRoute string, cdc *codec.Codec) *cobra.Command {
+	return &cobra.Command{
+		Use:   "names",
+		Short: "names",
+		// Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cliCtx := context.NewCLIContext().WithCodec(cdc)
 
-func (w whoIsRes) String() string {
-	return strings.TrimSpace(fmt.Sprintf(`Owner: %s
-Value: %s
-Price: %s`, w.Owner, w.Value, w.Price))
+			res, err := cliCtx.QueryWithData(fmt.Sprintf("custom/%s/names", queryRoute), nil)
+			if err != nil {
+				fmt.Printf("could not get query names\n")
+				return nil
+			}
+
+			var out nameservice.QueryResNames
+			cdc.MustUnmarshalJSON(res, &out)
+			return cliCtx.PrintOutput(out)
+		},
+	}
 }

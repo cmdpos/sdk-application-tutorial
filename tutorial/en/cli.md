@@ -6,7 +6,7 @@ The Cosmos SDK uses the [`cobra`](https://github.com/spf13/cobra) library for CL
 - `./x/nameservice/client/cli/tx.go`
 - `./x/nameservice/client/module_client.go`
 
-### Queries
+## Queries
 
 Start in `query.go`. Here, define `cobra.Command`s for each of your modules `Queriers` (`resolve`, and `whois`):
 
@@ -15,11 +15,10 @@ package cli
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
 	"github.com/cosmos/cosmos-sdk/codec"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/sdk-application-tutorial/x/nameservice"
 	"github.com/spf13/cobra"
 )
 
@@ -39,17 +38,11 @@ func GetCmdResolveName(queryRoute string, cdc *codec.Codec) *cobra.Command {
 				return nil
 			}
 
-			return cliCtx.PrintOutput(resolveRes{string(res)})
+			var out nameservice.QueryResResolve
+			cdc.MustUnmarshalJSON(res, &out)
+			return cliCtx.PrintOutput(out)
 		},
 	}
-}
-
-type resolveRes struct {
-	Value string `json:"value"`
-}
-
-func (r resolveRes) String() string {
-	return r.Value
 }
 
 // GetCmdWhois queries information about a domain
@@ -68,35 +61,46 @@ func GetCmdWhois(queryRoute string, cdc *codec.Codec) *cobra.Command {
 				return nil
 			}
 
-			var out whoIsRes
+			var out nameservice.Whois
 			cdc.MustUnmarshalJSON(res, &out)
 			return cliCtx.PrintOutput(out)
 		},
 	}
 }
 
-type whoIsRes struct {
-	Value string         `json:"value"`
-	Owner sdk.AccAddress `json:"owner"`
-	Price sdk.Coins      `json:"price"`
-}
+// GetCmdNames queries a list of all names
+func GetCmdNames(queryRoute string, cdc *codec.Codec) *cobra.Command {
+	return &cobra.Command{
+		Use:   "names",
+		Short: "names",
+		// Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cliCtx := context.NewCLIContext().WithCodec(cdc)
 
-func (w whoIsRes) String() string {
-	return strings.TrimSpace(fmt.Sprintf(`Owner: %s
-Value: %s
-Price: %s`, w.Owner, w.Value, w.Price))
+			res, err := cliCtx.QueryWithData(fmt.Sprintf("custom/%s/names", queryRoute), nil)
+			if err != nil {
+				fmt.Printf("could not get query names\n")
+				return nil
+			}
+
+			var out nameservice.QueryResNames
+			cdc.MustUnmarshalJSON(res, &out)
+			return cliCtx.PrintOutput(out)
+		},
+	}
 }
 ```
 
 Notes on the above code:
+
 - The CLI introduces a new `context`: [`CLIContext`](https://godoc.org/github.com/cosmos/cosmos-sdk/client/context#CLIContext). It carries data about user input and application configuration that are needed for CLI interactions.
 - The `path` required for the `cliCtx.QueryWithData()` function maps directly to the names in your query router.
-  * The first part of the path is used to differentiate the types of queries possible to SDK applications: `custom` is for `Queriers`.
-  * The second piece (`nameservice`) is the name of the module to route the query to.
-  * Finally there is the specific querier in the module that will be called.
-  * In this example the fourth piece is the query. This works because the query parameter is a simple string. To enable more complex query inputs you need to use the second argument of the [`.QueryWithData()`](https://godoc.org/github.com/cosmos/cosmos-sdk/client/context#CLIContext.QueryWithData) function to pass in `data`. For an example of this see the [queriers in the Staking module](https://github.com/cosmos/cosmos-sdk/blob/develop/x/stake/querier/querier.go#L103).
+  - The first part of the path is used to differentiate the types of queries possible to SDK applications: `custom` is for `Queriers`.
+  - The second piece (`nameservice`) is the name of the module to route the query to.
+  - Finally there is the specific querier in the module that will be called.
+  - In this example the fourth piece is the query. This works because the query parameter is a simple string. To enable more complex query inputs you need to use the second argument of the [`.QueryWithData()`](https://godoc.org/github.com/cosmos/cosmos-sdk/client/context#CLIContext.QueryWithData) function to pass in `data`. For an example of this see the [queriers in the Staking module](https://github.com/cosmos/cosmos-sdk/blob/develop/x/stake/querier/querier.go#L103).
 
-### Transactions
+## Transactions
 
 Now that the query interactions are defined, it is time to move on to transaction generation in `tx.go`:
 
@@ -173,7 +177,6 @@ func GetCmdSetName(cdc *codec.Codec) *cobra.Command {
 
 			cliCtx.PrintResponse = true
 
-			// return utils.CompleteAndBroadcastTxCLI(txBldr, cliCtx, msgs)
 			return utils.CompleteAndBroadcastTxCLI(txBldr, cliCtx, []sdk.Msg{msg})
 		},
 	}
@@ -181,9 +184,10 @@ func GetCmdSetName(cdc *codec.Codec) *cobra.Command {
 ```
 
 Notes on the above code:
+
 - The `authcmd` package is used here. [The godocs have more information on usage](https://godoc.org/github.com/cosmos/cosmos-sdk/x/auth/client/cli#GetAccountDecoder). It provides access to accounts controlled by the CLI and facilitates signing.
 
-### Module Client
+## Module Client
 
 The final piece to export this functionality is called the `ModuleClient` and goes in `./x/nameservice/client/module_client.go`. [Module clients](https://godoc.org/github.com/cosmos/cosmos-sdk/types#ModuleClients) provide a standard way for modules to export client functionality.
 
@@ -211,38 +215,39 @@ func NewModuleClient(storeKey string, cdc *amino.Codec) ModuleClient {
 
 // GetQueryCmd returns the cli query commands for this module
 func (mc ModuleClient) GetQueryCmd() *cobra.Command {
-	// Group gov queries under a subcommand
-	govQueryCmd := &cobra.Command{
+	// Group nameservice queries under a subcommand
+	namesvcQueryCmd := &cobra.Command{
 		Use:   "nameservice",
 		Short: "Querying commands for the nameservice module",
 	}
 
-	govQueryCmd.AddCommand(client.GetCommands(
+	namesvcQueryCmd.AddCommand(client.GetCommands(
 		nameservicecmd.GetCmdResolveName(mc.storeKey, mc.cdc),
 		nameservicecmd.GetCmdWhois(mc.storeKey, mc.cdc),
 	)...)
 
-	return govQueryCmd
+	return namesvcQueryCmd
 }
 
 // GetTxCmd returns the transaction commands for this module
 func (mc ModuleClient) GetTxCmd() *cobra.Command {
-	govTxCmd := &cobra.Command{
+	namesvcTxCmd := &cobra.Command{
 		Use:   "nameservice",
 		Short: "Nameservice transactions subcommands",
 	}
 
-	govTxCmd.AddCommand(client.PostCommands(
+	namesvcTxCmd.AddCommand(client.PostCommands(
 		nameservicecmd.GetCmdBuyName(mc.cdc),
 		nameservicecmd.GetCmdSetName(mc.cdc),
 	)...)
 
-	return govTxCmd
+	return namesvcTxCmd
 }
 ```
 
 Notes on the above code:
-- This abstraction allows clients to import the client functionality from your module in a standard way. You will see this when we [build the entrypoints](./entrypoint.md)
+
+- This abstraction allows clients to import the client functionality from your module in a standard way. You will see this when we [build the entrypoints](entrypoint.md)
 - There is an [open issue](https://github.com/cosmos/cosmos-sdk/issues/2955) to add the rest functionality (described in the next part of this tutorial) to this interface as well.
 
-### Now your ready to define [the routes that the REST client will use to communicate with your module](./rest.md)!
+### Now your ready to define [the routes that the REST client will use to communicate with your module](rest.md)!

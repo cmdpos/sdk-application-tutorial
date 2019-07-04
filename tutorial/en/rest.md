@@ -16,9 +16,10 @@ import (
 	"net/http"
 
 	"github.com/cosmos/cosmos-sdk/client/context"
-	"github.com/cosmos/cosmos-sdk/client/rest"
+	clientrest "github.com/cosmos/cosmos-sdk/client/rest"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/rest"
 	"github.com/cosmos/sdk-application-tutorial/x/nameservice"
 
 	"github.com/gorilla/mux"
@@ -77,15 +78,28 @@ func whoIsHandler(cdc *codec.Codec, cliCtx context.CLIContext, storeName string)
 		rest.PostProcessResponse(w, cdc, res, cliCtx.Indent)
 	}
 }
+
+
+func namesHandler(cdc *codec.Codec, cliCtx context.CLIContext, storeName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		res, err := cliCtx.QueryWithData(fmt.Sprintf("custom/%s/names", storeName), nil)
+		if err != nil {
+			rest.WriteErrorResponse(w, http.StatusNotFound, err.Error())
+			return
+		}
+		rest.PostProcessResponse(w, cdc, res, cliCtx.Indent)
+	}
+}
 ```
 
 Notes on the above code:
+
 - Notice we are using the same `cliCtx.QueryWithData` function to fetch the data
 - These functions are almost the same as the corresponding CLI functionality
 
 ### Tx Handlers
 
-Now define the `buyName` and `setName` transaction routes:
+Now define the `buyName` and `setName` transaction routes. Notice these aren't actually sending the transactions to buy and set names. That would require sending a password along with the request which would be a security issue. Instead these endpoints build and return each specific transaction which can then be signed in a secure manner and afterwards broadcast to the network using a standard endpoint like `/txs`.
 
 ```go
 type buyNameReq struct {
@@ -128,8 +142,7 @@ func buyNameHandler(cdc *codec.Codec, cliCtx context.CLIContext) http.HandlerFun
 			rest.WriteErrorResponse(w, http.StatusBadRequest, err.Error())
 			return
 		}
-
-		rest.CompleteAndBroadcastTxREST(w, r, cliCtx, baseReq, []sdk.Msg{msg}, cdc)
+		clientrest.WriteGenerateStdTxResponse(w, cdc, cliCtx, baseReq, []sdk.Msg{msg})
 	}
 }
 
@@ -167,13 +180,14 @@ func setNameHandler(cdc *codec.Codec, cliCtx context.CLIContext) http.HandlerFun
 			return
 		}
 
-		rest.CompleteAndBroadcastTxREST(w, r, cliCtx, baseReq, []sdk.Msg{msg}, cdc)
+		clientrest.WriteGenerateStdTxResponse(w, cdc, cliCtx, baseReq, []sdk.Msg{msg})
 	}
 }
 ```
 
 Notes on the above code:
-- The [`BaseReq`](https://godoc.org/github.com/cosmos/cosmos-sdk/client/utils#BaseReq) contains the basic required fields for making a transaction (which key to use, how to decode it, which chain are you on, etc...) and is designed to be embedded as shown.
-- `baseReq.ValidateBasic` and `utils.CompleteAndBroadcastTxREST` handle setting the response code for you and therefore you don't need to worry about handling errors or successes when using those functions.
+
+- The [`BaseReq`](https://godoc.org/github.com/cosmos/cosmos-sdk/client/utils#BaseReq) contains the basic required fields for making a transaction (which key to use, how to decode it, which chain you are on, etc...) and is designed to be embedded as shown.
+- `baseReq.ValidateBasic` and `clientrest.CompleteAndBroadcastTxREST` handle setting the response code for you and therefore you don't need to worry about handling errors or successes when using those functions.
 
 ### Now your module has everything it needs to be [incorporated into your Cosmos SDK application](./app-complete.md)!
