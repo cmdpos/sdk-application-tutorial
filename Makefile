@@ -1,7 +1,7 @@
 
 all: install
 
-install: go.sum
+install:
 	go install ./cmd/nsd
 	go install ./cmd/nscli
 
