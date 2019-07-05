@@ -8,16 +8,12 @@ nscli query account $(nscli keys show alice -a) \
 # Buy your first name using your coins from the genesis file
 nscli tx nameservice buy-name jack.id 15mycoin \
     --from     jack \
-    --chain-id testchain <<EOF
-asdfghjkl
-EOF
+    --chain-id testchain -y
 
 # Set the value for the name you just bought
 nscli tx nameservice set-name jack.id 8.8.8.8 \
     --from     jack \
-    --chain-id testchain <<EOF
-asdfghjkl
-EOF
+    --chain-id testchain -y
 
 # Try out a resolve query against the name you registered
 nscli query nameservice resolve jack.id --chain-id testchain
@@ -30,6 +26,9 @@ nscli query nameservice whois jack.id --chain-id testchain
 # Alice buys name from jack
 nscli tx nameservice buy-name jack.id 10mycoin \
     --from     alice \
-    --chain-id testchain <<EOF
-asdfghjkl
-EOF
+    --chain-id testchain -y
+
+# Alice buys name from jack
+nscli tx nameservice buy-name jack.id 20mycoin \
+    --from     alice \
+    --chain-id testchain -y

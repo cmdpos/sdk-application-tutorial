@@ -13,3 +13,6 @@ build
 # IDE
 .idea/
 *.iml
+
+_nsd
+_nscli

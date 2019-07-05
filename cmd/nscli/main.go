@@ -51,6 +51,7 @@ func main() {
 		Use:   "nscli",
 		Short: "nameservice Client",
 	}
+	rootCmd.PersistentFlags().String("passwd", "12345678", "Pass word of sender")
 
 	// Add --chain-id to persistent flags and mark it required
 	rootCmd.PersistentFlags().String(client.FlagChainID, "", "Chain ID of tendermint node")
